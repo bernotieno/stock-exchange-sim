@@ -1,4 +1,4 @@
-# 🛠️ 2-Week Work Plan – Process Chain Optimizer Project
+# 🛠️ 2-Week Work Plan – Stock-exchange-simulator
 
 ## ⏲️ Assumptions
 - 1 day = 4 working hours
