@@ -1,7 +1,10 @@
 package parser
 
 import (
+	"bufio"
 	"fmt"
+	"io"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -12,6 +15,32 @@ type Process struct {
 	Inputs   map[string]int // Input items and their required quantities
 	Outputs  map[string]int // Output items and their produced quantities
 	Duration time.Duration  // Time required to complete one cycle
+}
+
+// parseDuration parses a duration string, supporting both plain seconds and Go duration format
+func parseDuration(durationStr string, lineNum int) (time.Duration, error) {
+	durationStr = strings.TrimSpace(durationStr)
+	if durationStr == "" {
+		return 0, fmt.Errorf("line %d: duration cannot be empty", lineNum)
+	}
+
+	// Try parsing as Go duration first (e.g., "30s", "2m", "1h30m")
+	if duration, err := time.ParseDuration(durationStr); err == nil {
+		if duration <= 0 {
+			return 0, fmt.Errorf("line %d: duration must be positive", lineNum)
+		}
+		return duration, nil
+	}
+
+	// Try parsing as plain seconds
+	if seconds, err := strconv.ParseInt(durationStr, 10, 64); err == nil {
+		if seconds <= 0 {
+			return 0, fmt.Errorf("line %d: duration must be positive", lineNum)
+		}
+		return time.Duration(seconds) * time.Second, nil
+	}
+
+	return 0, fmt.Errorf("line %d: invalid duration format '%s'", lineNum, durationStr)
 }
 
 func parseProcessLine(line string, lineNum int) (Process, error) {
