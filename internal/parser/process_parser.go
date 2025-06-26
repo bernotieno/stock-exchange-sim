@@ -9,19 +9,16 @@ import (
 	"time"
 )
 
-// Process represents a manufacturing process with inputs, outputs, and duration
+// Process defines a single manufacturing step with inputs, outputs, and duration.
 type Process struct {
-	Name     string         // Process name
-	Inputs   map[string]int // Input items and their required quantities
-	Outputs  map[string]int // Output items and their produced quantities
-	Duration time.Duration  // Time required to complete one cycle
+	Name     string         // Name of the process
+	Inputs   map[string]int // Required input items
+	Outputs  map[string]int // Produced output items
+	Duration time.Duration  // Time per production cycle
 }
 
-// ParseProcesses parses process definitions from a reader.
-// Process lines have the format: name:(input1:qty;input2:qty):(output1:qty;output2:qty):duration
-// Duration can be in seconds (e.g., "30") or with units (e.g., "30s", "2m").
-//
-// Returns a slice of Process structs and any parsing error encountered.
+// ParseProcesses reads and parses all valid process lines from the reader.
+// Ignores empty lines and comments. Returns a slice of Process structs.
 func ParseProcesses(r io.Reader) ([]Process, error) {
 	var processes []Process
 	scanner := bufio.NewScanner(r)
@@ -31,14 +28,12 @@ func ParseProcesses(r io.Reader) ([]Process, error) {
 		lineNum++
 		line := strings.TrimSpace(scanner.Text())
 
-		// Skip empty lines and comments
 		if line == "" || strings.HasPrefix(line, "#") {
-			continue
+			continue // Skip comments and blanks
 		}
 
-		// Skip non-process lines (stocks, optimize, etc.)
 		if !isProcessLine(line) {
-			continue
+			continue // Ignore unrelated lines
 		}
 
 		process, err := parseProcessLine(line, lineNum)
@@ -56,12 +51,11 @@ func ParseProcesses(r io.Reader) ([]Process, error) {
 	return processes, nil
 }
 
-// parseItemQuantities parses item:quantity pairs separated by semicolons
-// Format: (item1:qty1;item2:qty2) or empty ()
+// parseItemQuantities parses (item:qty;...) sections into a map.
+// Validates structure and ensures quantities are positive integers.
 func parseItemQuantities(section string, lineNum int, sectionName string) (map[string]int, error) {
 	section = strings.TrimSpace(section)
 
-	// Remove surrounding parentheses
 	if !strings.HasPrefix(section, "(") || !strings.HasSuffix(section, ")") {
 		return nil, fmt.Errorf("line %d: %s section must be enclosed in parentheses", lineNum, sectionName)
 	}
@@ -69,9 +63,8 @@ func parseItemQuantities(section string, lineNum int, sectionName string) (map[s
 	content := strings.TrimSpace(section[1 : len(section)-1])
 	items := make(map[string]int)
 
-	// Handle empty section
 	if content == "" {
-		return items, nil
+		return items, nil // Empty section
 	}
 
 	pairs := strings.Split(content, ";")
@@ -107,14 +100,14 @@ func parseItemQuantities(section string, lineNum int, sectionName string) (map[s
 	return items, nil
 }
 
-// parseDuration parses a duration string, supporting both plain seconds and Go duration format
+// parseDuration parses duration values in Go format (e.g., "30s", "1m") or plain seconds.
 func parseDuration(durationStr string, lineNum int) (time.Duration, error) {
 	durationStr = strings.TrimSpace(durationStr)
 	if durationStr == "" {
 		return 0, fmt.Errorf("line %d: duration cannot be empty", lineNum)
 	}
 
-	// Try parsing as Go duration first (e.g., "30s", "2m", "1h30m")
+	// Try standard Go duration format
 	if duration, err := time.ParseDuration(durationStr); err == nil {
 		if duration <= 0 {
 			return 0, fmt.Errorf("line %d: duration must be positive", lineNum)
@@ -122,7 +115,7 @@ func parseDuration(durationStr string, lineNum int) (time.Duration, error) {
 		return duration, nil
 	}
 
-	// Try parsing as plain seconds
+	// Try plain seconds
 	if seconds, err := strconv.ParseInt(durationStr, 10, 64); err == nil {
 		if seconds <= 0 {
 			return 0, fmt.Errorf("line %d: duration must be positive", lineNum)
@@ -133,9 +126,9 @@ func parseDuration(durationStr string, lineNum int) (time.Duration, error) {
 	return 0, fmt.Errorf("line %d: invalid duration format '%s'", lineNum, durationStr)
 }
 
-// parseProcessLine parses a single process definition line
+// parseProcessLine parses a single line defining a process.
+// Expected format: name:(inputs):(outputs):duration
 func parseProcessLine(line string, lineNum int) (Process, error) {
-	// Find the process name (everything before the first colon)
 	firstColon := strings.Index(line, ":")
 	if firstColon == -1 {
 		return Process{}, fmt.Errorf("line %d: invalid process format, expected 'name:inputs:outputs:duration'", lineNum)
@@ -148,71 +141,39 @@ func parseProcessLine(line string, lineNum int) (Process, error) {
 
 	remainder := line[firstColon+1:]
 
-	// Find the inputs section (from first '(' to matching ')')
+	// Parse inputs section
 	if !strings.HasPrefix(remainder, "(") {
 		return Process{}, fmt.Errorf("line %d: inputs section must start with '('", lineNum)
 	}
-
-	parenCount := 0
-	inputsEnd := -1
-	for i, char := range remainder {
-		if char == '(' {
-			parenCount++
-		} else if char == ')' {
-			parenCount--
-			if parenCount == 0 {
-				inputsEnd = i
-				break
-			}
-		}
-	}
-
+	inputsEnd := findClosingParen(remainder)
 	if inputsEnd == -1 {
 		return Process{}, fmt.Errorf("line %d: inputs section missing closing ')'", lineNum)
 	}
-
 	inputsSection := remainder[:inputsEnd+1]
 	remainder = remainder[inputsEnd+1:]
 
-	// Next should be a colon
 	if !strings.HasPrefix(remainder, ":") {
 		return Process{}, fmt.Errorf("line %d: expected ':' after inputs section", lineNum)
 	}
 	remainder = remainder[1:]
 
-	// Find the outputs section (from next '(' to matching ')')
+	// Parse outputs section
 	if !strings.HasPrefix(remainder, "(") {
 		return Process{}, fmt.Errorf("line %d: outputs section must start with '('", lineNum)
 	}
-
-	parenCount = 0
-	outputsEnd := -1
-	for i, char := range remainder {
-		if char == '(' {
-			parenCount++
-		} else if char == ')' {
-			parenCount--
-			if parenCount == 0 {
-				outputsEnd = i
-				break
-			}
-		}
-	}
-
+	outputsEnd := findClosingParen(remainder)
 	if outputsEnd == -1 {
 		return Process{}, fmt.Errorf("line %d: outputs section missing closing ')'", lineNum)
 	}
-
 	outputsSection := remainder[:outputsEnd+1]
 	remainder = remainder[outputsEnd+1:]
 
-	// Next should be a colon followed by duration
 	if !strings.HasPrefix(remainder, ":") {
 		return Process{}, fmt.Errorf("line %d: expected ':' after outputs section", lineNum)
 	}
 	durationStr := remainder[1:]
 
-	// Check for extra colons in duration (indicating too many parts)
+	// Validate parts
 	if strings.Contains(durationStr, ":") {
 		return Process{}, fmt.Errorf("line %d: invalid process format, too many colons", lineNum)
 	}
@@ -238,4 +199,21 @@ func parseProcessLine(line string, lineNum int) (Process, error) {
 		Outputs:  outputs,
 		Duration: duration,
 	}, nil
+}
+
+// findClosingParen finds the index of the matching ')' for the first '('.
+// Returns -1 if the parentheses are unbalanced.
+func findClosingParen(s string) int {
+	count := 0
+	for i, ch := range s {
+		if ch == '(' {
+			count++
+		} else if ch == ')' {
+			count--
+			if count == 0 {
+				return i
+			}
+		}
+	}
+	return -1
 }
