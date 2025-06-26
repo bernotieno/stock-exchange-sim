@@ -1,9 +1,7 @@
 package parser
 
 import (
-	"bufio"
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +13,57 @@ type Process struct {
 	Inputs   map[string]int // Input items and their required quantities
 	Outputs  map[string]int // Output items and their produced quantities
 	Duration time.Duration  // Time required to complete one cycle
+}
+
+// parseItemQuantities parses item:quantity pairs separated by semicolons
+// Format: (item1:qty1;item2:qty2) or empty ()
+func parseItemQuantities(section string, lineNum int, sectionName string) (map[string]int, error) {
+	section = strings.TrimSpace(section)
+
+	// Remove surrounding parentheses
+	if !strings.HasPrefix(section, "(") || !strings.HasSuffix(section, ")") {
+		return nil, fmt.Errorf("line %d: %s section must be enclosed in parentheses", lineNum, sectionName)
+	}
+
+	content := strings.TrimSpace(section[1 : len(section)-1])
+	items := make(map[string]int)
+
+	// Handle empty section
+	if content == "" {
+		return items, nil
+	}
+
+	pairs := strings.Split(content, ";")
+	for _, pair := range pairs {
+		pair = strings.TrimSpace(pair)
+		if pair == "" {
+			continue
+		}
+
+		itemParts := strings.SplitN(pair, ":", 2)
+		if len(itemParts) != 2 {
+			return nil, fmt.Errorf("line %d: invalid %s item format '%s', expected 'item:quantity'", lineNum, sectionName, pair)
+		}
+
+		itemName := strings.TrimSpace(itemParts[0])
+		if itemName == "" {
+			return nil, fmt.Errorf("line %d: item name cannot be empty in %s", lineNum, sectionName)
+		}
+
+		quantityStr := strings.TrimSpace(itemParts[1])
+		quantity, err := strconv.Atoi(quantityStr)
+		if err != nil {
+			return nil, fmt.Errorf("line %d: invalid quantity '%s' for item '%s' in %s: %w", lineNum, quantityStr, itemName, sectionName, err)
+		}
+
+		if quantity <= 0 {
+			return nil, fmt.Errorf("line %d: quantity for item '%s' in %s must be positive", lineNum, itemName, sectionName)
+		}
+
+		items[itemName] = quantity
+	}
+
+	return items, nil
 }
 
 // parseDuration parses a duration string, supporting both plain seconds and Go duration format
@@ -43,6 +92,7 @@ func parseDuration(durationStr string, lineNum int) (time.Duration, error) {
 	return 0, fmt.Errorf("line %d: invalid duration format '%s'", lineNum, durationStr)
 }
 
+// parseProcessLine parses a single process definition line
 func parseProcessLine(line string, lineNum int) (Process, error) {
 	// Find the process name (everything before the first colon)
 	firstColon := strings.Index(line, ":")
