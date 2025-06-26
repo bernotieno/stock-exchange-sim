@@ -1,7 +1,9 @@
 package parser
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -13,6 +15,45 @@ type Process struct {
 	Inputs   map[string]int // Input items and their required quantities
 	Outputs  map[string]int // Output items and their produced quantities
 	Duration time.Duration  // Time required to complete one cycle
+}
+
+// ParseProcesses parses process definitions from a reader.
+// Process lines have the format: name:(input1:qty;input2:qty):(output1:qty;output2:qty):duration
+// Duration can be in seconds (e.g., "30") or with units (e.g., "30s", "2m").
+//
+// Returns a slice of Process structs and any parsing error encountered.
+func ParseProcesses(r io.Reader) ([]Process, error) {
+	var processes []Process
+	scanner := bufio.NewScanner(r)
+	lineNum := 0
+
+	for scanner.Scan() {
+		lineNum++
+		line := strings.TrimSpace(scanner.Text())
+
+		// Skip empty lines and comments
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		// Skip non-process lines (stocks, optimize, etc.)
+		if !isProcessLine(line) {
+			continue
+		}
+
+		process, err := parseProcessLine(line, lineNum)
+		if err != nil {
+			return nil, err
+		}
+
+		processes = append(processes, process)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error reading input: %w", err)
+	}
+
+	return processes, nil
 }
 
 // parseItemQuantities parses item:quantity pairs separated by semicolons
