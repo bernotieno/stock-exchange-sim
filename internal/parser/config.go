@@ -13,6 +13,16 @@ type Config struct {
 	Optimize []string `json:"optimize"`
 }
 
+// GetProcessByName returns a process by its name, or nil if not found.
+func (c *Config) GetProcessByName(name string) *Process {
+	for i := range c.Processes {
+		if c.Processes[i].Name == name {
+			return &c.Processes[i]
+		}
+	}
+	return nil
+}
+
 // GetStockQuantity returns the initial stock quantity for an item.
 // Returns 0 if the item is not in the initial stock.
 func (c *Config) GetStockQuantity(item string) int {
