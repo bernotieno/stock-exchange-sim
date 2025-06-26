@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 )
 
@@ -42,4 +43,36 @@ func ParseStocks(r io.Reader) (map[string]int, error) {
 	}
 
 	return stocks, nil
+}
+
+// parseStockLine parses a single stock line and adds it to the stocks map
+func parseStockLine(line string, stocks map[string]int, lineNum int) error {
+	parts := strings.SplitN(line, ":", 2)
+	if len(parts) != 2 {
+		return fmt.Errorf("line %d: invalid stock format, expected 'name:quantity'", lineNum)
+	}
+
+	name := strings.TrimSpace(parts[0])
+	if name == "" {
+		return fmt.Errorf("line %d: stock name cannot be empty", lineNum)
+	}
+
+	quantityStr := strings.TrimSpace(parts[1])
+	quantity, err := strconv.Atoi(quantityStr)
+	if err != nil {
+		return fmt.Errorf("line %d: invalid quantity '%s': %w", lineNum, quantityStr, err)
+	}
+
+	if quantity < 0 {
+		return fmt.Errorf("line %d: stock quantity cannot be negative", lineNum)
+	}
+
+	stocks[name] = quantity
+	return nil
+}
+
+// isProcessLine checks if a line appears to be a process definition
+// Process lines contain at least 3 colons (name:inputs:outputs:duration)
+func isProcessLine(line string) bool {
+	return strings.Count(line, ":") >= 3
 }
