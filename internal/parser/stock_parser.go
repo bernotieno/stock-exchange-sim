@@ -8,11 +8,9 @@ import (
 	"strings"
 )
 
-// ParseStocks parses stock definitions from a reader until it encounters
-// a process definition or EOF. Stock lines have the format "name:quantity".
-// Empty lines and lines starting with '#' are skipped.
-//
-// Returns a map of stock names to quantities and any parsing error encountered.
+// ParseStocks reads stock definitions from the input until a process line is encountered.
+// Accepts lines like: name:quantity. Ignores empty lines and comments.
+// Returns a map of item names to their quantities.
 func ParseStocks(r io.Reader) (map[string]int, error) {
 	stocks := make(map[string]int)
 	scanner := bufio.NewScanner(r)
@@ -22,17 +20,14 @@ func ParseStocks(r io.Reader) (map[string]int, error) {
 		lineNum++
 		line := strings.TrimSpace(scanner.Text())
 
-		// Skip empty lines and comments
 		if line == "" || strings.HasPrefix(line, "#") {
-			continue
+			continue // Skip comments and blanks
 		}
 
-		// Stop parsing stocks when we hit a process definition
 		if isProcessLine(line) {
-			break
+			break // Stop parsing at the first process definition
 		}
 
-		// Parse stock line
 		if err := parseStockLine(line, stocks, lineNum); err != nil {
 			return nil, err
 		}
@@ -45,7 +40,7 @@ func ParseStocks(r io.Reader) (map[string]int, error) {
 	return stocks, nil
 }
 
-// parseStockLine parses a single stock line and adds it to the stocks map
+// parseStockLine parses a single "name:quantity" line and updates the stocks map.
 func parseStockLine(line string, stocks map[string]int, lineNum int) error {
 	parts := strings.SplitN(line, ":", 2)
 	if len(parts) != 2 {
@@ -71,8 +66,8 @@ func parseStockLine(line string, stocks map[string]int, lineNum int) error {
 	return nil
 }
 
-// isProcessLine checks if a line appears to be a process definition
-// Process lines contain at least 3 colons (name:inputs:outputs:duration)
+// isProcessLine returns true if the line resembles a process definition.
+// Assumes a process line contains at least 3 colons (name:inputs:outputs:duration).
 func isProcessLine(line string) bool {
 	return strings.Count(line, ":") >= 3
 }
