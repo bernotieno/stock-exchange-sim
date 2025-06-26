@@ -27,33 +27,42 @@ type Config struct {
 //
 // Returns a Config struct containing all parsed data and any error encountered.
 func ParseConfig(r io.Reader) (*Config, error) {
-	// Create a MultiReader to allow multiple parsers to read the same content
 	content, err := io.ReadAll(r)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config: %w", err)
 	}
 
-	config := &Config{}
+	config := &Config{
+		Stocks:    make(map[string]int),
+		Processes: []Process{},
+		Optimize:  []string{},
+	}
+
+	// Split content into sections
+	sections := splitIntoSections(string(content))
 
 	// Parse stocks
-	stockReader := strings.NewReader(string(content))
-	config.Stocks, err = ParseStocks(stockReader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse stocks: %w", err)
+	if stocksSection, exists := sections["stocks"]; exists {
+		config.Stocks, err = ParseStocks(strings.NewReader(stocksSection))
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse stocks: %w", err)
+		}
 	}
 
 	// Parse processes
-	processReader := strings.NewReader(string(content))
-	config.Processes, err = ParseProcesses(processReader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse processes: %w", err)
+	if processesSection, exists := sections["processes"]; exists {
+		config.Processes, err = ParseProcesses(strings.NewReader(processesSection))
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse processes: %w", err)
+		}
 	}
 
-	// Parse optimization targets
-	optimizeReader := strings.NewReader(string(content))
-	config.Optimize, err = ParseOptimize(optimizeReader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse optimization targets: %w", err)
+	// Parse optimize
+	if optimizeSection, exists := sections["optimize"]; exists {
+		config.Optimize, err = ParseOptimize(strings.NewReader(optimizeSection))
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse optimization targets: %w", err)
+		}
 	}
 
 	// Validate the parsed configuration
@@ -62,6 +71,44 @@ func ParseConfig(r io.Reader) (*Config, error) {
 	}
 
 	return config, nil
+}
+
+func splitIntoSections(content string) map[string]string {
+	sections := make(map[string]string)
+	currentSection := ""
+	var sectionContent strings.Builder
+
+	for _, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "# Stocks") {
+			if currentSection != "" {
+				sections[currentSection] = sectionContent.String()
+				sectionContent.Reset()
+			}
+			currentSection = "stocks"
+		} else if strings.HasPrefix(trimmed, "# Processes") {
+			if currentSection != "" {
+				sections[currentSection] = sectionContent.String()
+				sectionContent.Reset()
+			}
+			currentSection = "processes"
+		} else if strings.HasPrefix(trimmed, "# Optimize") {
+			if currentSection != "" {
+				sections[currentSection] = sectionContent.String()
+				sectionContent.Reset()
+			}
+			currentSection = "optimize"
+		} else if currentSection != "" {
+			sectionContent.WriteString(line)
+			sectionContent.WriteString("\n")
+		}
+	}
+
+	if currentSection != "" {
+		sections[currentSection] = sectionContent.String()
+	}
+
+	return sections
 }
 
 // Validate performs consistency checks on the parsed configuration.
