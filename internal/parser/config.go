@@ -13,6 +13,11 @@ type Config struct {
 	Optimize []string `json:"optimize"`
 }
 
+// GetStockQuantity returns the initial stock quantity for an item.
+// Returns 0 if the item is not in the initial stock.
+func (c *Config) GetStockQuantity(item string) int {
+	return c.Stocks[item] // Returns 0 for missing keys
+}
 
 // GetAllItems returns a slice of all unique item names mentioned in the configuration.
 func (c *Config) GetAllItems() []string {
