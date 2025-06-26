@@ -7,11 +7,9 @@ import (
 	"strings"
 )
 
-// ParseOptimize parses optimization targets from a reader.
-// The optimize line has the format: optimize:(item1;item2;item3)
-// If no optimize line is found or it's malformed, returns an empty slice.
-//
-// Returns a slice of optimization target item names.
+// ParseOptimize extracts optimization targets from input.
+// Accepts a line like: optimize:(item1;item2;item3)
+// Returns a list of item names or an empty slice on error.
 func ParseOptimize(r io.Reader) ([]string, error) {
 	scanner := bufio.NewScanner(r)
 	lineNum := 0
@@ -25,11 +23,11 @@ func ParseOptimize(r io.Reader) ([]string, error) {
 			continue
 		}
 
-		// Look for optimize line
+		// Parse optimize line
 		if strings.HasPrefix(line, "optimize:") {
 			targets, err := parseOptimizeLine(line, lineNum)
 			if err != nil {
-				// Log warning but don't fail - return empty slice as fallback
+				// Non-fatal error, fallback to empty list
 				fmt.Printf("Warning: %v, using empty optimization targets\n", err)
 				return []string{}, nil
 			}
@@ -41,56 +39,50 @@ func ParseOptimize(r io.Reader) ([]string, error) {
 		return nil, fmt.Errorf("error reading input: %w", err)
 	}
 
-	// No optimize line found - return empty slice as fallback
+	// No optimize line found
 	return []string{}, nil
 }
 
-// parseOptimizeLine parses a single optimize line
+// parseOptimizeLine parses one optimize line into target item names.
+// Expects input in the form: optimize:(item1;item2;...)
 func parseOptimizeLine(line string, lineNum int) ([]string, error) {
-	// Remove "optimize:" prefix
-	content := strings.TrimSpace(line[9:]) // len("optimize:") = 9
+	content := strings.TrimSpace(line[9:]) // remove "optimize:"
 
-	// Check for parentheses
 	if !strings.HasPrefix(content, "(") || !strings.HasSuffix(content, ")") {
-		return nil, fmt.Errorf("line %d: optimize targets must be enclosed in parentheses", lineNum)
+		return nil, fmt.Errorf("line %d: optimize targets must be in parentheses", lineNum)
 	}
 
-	// Extract content inside parentheses
+	// Get text inside parentheses
 	targetList := strings.TrimSpace(content[1 : len(content)-1])
 
-	// Handle empty target list
 	if targetList == "" {
 		return []string{}, nil
 	}
 
-	// Split by semicolon and clean up
 	parts := strings.Split(targetList, ";")
 	var targets []string
 
 	for _, part := range parts {
 		target := strings.TrimSpace(part)
 		if target == "" {
-			continue // Skip empty parts
+			continue
 		}
-
-		// Validate target name (basic check for valid identifier)
 		if !isValidItemName(target) {
-			return nil, fmt.Errorf("line %d: invalid optimization target name '%s'", lineNum, target)
+			return nil, fmt.Errorf("line %d: invalid optimization target '%s'", lineNum, target)
 		}
-
 		targets = append(targets, target)
 	}
 
 	return targets, nil
 }
 
-// isValidItemName checks if an item name is valid (basic validation)
+// isValidItemName returns true if the item name has no invalid characters.
 func isValidItemName(name string) bool {
 	if name == "" {
 		return false
 	}
 
-	// Check for invalid characters (basic check)
+	// Disallow characters that interfere with parsing
 	invalidChars := []string{":", ";", "(", ")", "#", "\n", "\r", "\t"}
 	for _, char := range invalidChars {
 		if strings.Contains(name, char) {
