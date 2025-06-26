@@ -1,6 +1,10 @@
 package parser
 
-import "fmt"
+import (
+	"fmt"
+	"io"
+	"strings"
+)
 
 // Config represents a complete parsed manufacturing configuration.
 // It contains all the information needed by a production scheduler.
@@ -13,6 +17,51 @@ type Config struct {
 
 	// Optimize lists the items that should be optimized for maximum production
 	Optimize []string `json:"optimize"`
+}
+
+// ParseConfig parses a complete configuration from a reader.
+// It processes stock definitions, process definitions, and optimization targets.
+//
+// The parser is designed to be flexible with section ordering - stocks, processes,
+// and optimize directives can appear in any order within the file.
+//
+// Returns a Config struct containing all parsed data and any error encountered.
+func ParseConfig(r io.Reader) (*Config, error) {
+	// Create a MultiReader to allow multiple parsers to read the same content
+	content, err := io.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config: %w", err)
+	}
+
+	config := &Config{}
+
+	// Parse stocks
+	stockReader := strings.NewReader(string(content))
+	config.Stocks, err = ParseStocks(stockReader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse stocks: %w", err)
+	}
+
+	// Parse processes
+	processReader := strings.NewReader(string(content))
+	config.Processes, err = ParseProcesses(processReader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse processes: %w", err)
+	}
+
+	// Parse optimization targets
+	optimizeReader := strings.NewReader(string(content))
+	config.Optimize, err = ParseOptimize(optimizeReader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse optimization targets: %w", err)
+	}
+
+	// Validate the parsed configuration
+	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("configuration validation failed: %w", err)
+	}
+
+	return config, nil
 }
 
 // Validate performs consistency checks on the parsed configuration.
