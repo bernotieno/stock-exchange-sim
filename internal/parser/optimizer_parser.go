@@ -1,9 +1,49 @@
 package parser
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"strings"
 )
+
+// ParseOptimize parses optimization targets from a reader.
+// The optimize line has the format: optimize:(item1;item2;item3)
+// If no optimize line is found or it's malformed, returns an empty slice.
+//
+// Returns a slice of optimization target item names.
+func ParseOptimize(r io.Reader) ([]string, error) {
+	scanner := bufio.NewScanner(r)
+	lineNum := 0
+
+	for scanner.Scan() {
+		lineNum++
+		line := strings.TrimSpace(scanner.Text())
+
+		// Skip empty lines and comments
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		// Look for optimize line
+		if strings.HasPrefix(line, "optimize:") {
+			targets, err := parseOptimizeLine(line, lineNum)
+			if err != nil {
+				// Log warning but don't fail - return empty slice as fallback
+				fmt.Printf("Warning: %v, using empty optimization targets\n", err)
+				return []string{}, nil
+			}
+			return targets, nil
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error reading input: %w", err)
+	}
+
+	// No optimize line found - return empty slice as fallback
+	return []string{}, nil
+}
 
 // parseOptimizeLine parses a single optimize line
 func parseOptimizeLine(line string, lineNum int) ([]string, error) {
