@@ -229,3 +229,64 @@ func TestParseProcesses(t *testing.T) {
 		})
 	}
 }
+
+func TestParseOptimize(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    []string
+		wantErr bool
+	}{
+		{
+			name:  "valid single target",
+			input: "optimize:(iron_ingot)",
+			want:  []string{"iron_ingot"},
+		},
+		{
+			name:  "valid multiple targets",
+			input: "optimize:(iron_ingot;sword;shield)",
+			want:  []string{"iron_ingot", "sword", "shield"},
+		},
+		{
+			name:  "empty targets",
+			input: "optimize:()",
+			want:  []string{},
+		},
+		{
+			name:  "no optimize line",
+			input: "iron_ore:100\nsmelting:(iron_ore:2):(iron_ingot:1):30",
+			want:  []string{},
+		},
+		{
+			name:  "optimize with comments",
+			input: "# Optimization targets\noptimize:(iron_ingot;sword)",
+			want:  []string{"iron_ingot", "sword"},
+		},
+		{
+			name:  "malformed line fallback",
+			input: "optimize:iron_ingot;sword",
+			want:  []string{}, // Should fallback to empty slice
+		},
+		{
+			name:  "targets with spaces",
+			input: "optimize:(iron ingot; steel plate)",
+			want:  []string{"iron ingot", "steel plate"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := strings.NewReader(tt.input)
+			got, err := ParseOptimize(r)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseOptimize() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseOptimize() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
