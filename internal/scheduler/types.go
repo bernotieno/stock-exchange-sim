@@ -24,6 +24,7 @@ type SchedulerState struct {
 	RunningProcesses []RunningProcess           // Processes currently running
 	ExecutionLog     []ExecutionStep            // Log of all execution steps
 	Config           *parser.Config             // Configuration data
+	LogFilename      string                     // Path to the generated log file
 }
 
 // Simulator represents the main simulation engine
