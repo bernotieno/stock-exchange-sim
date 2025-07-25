@@ -117,6 +117,10 @@ func (c *Config) Validate() error {
 	}
 
 	for _, target := range c.Optimize {
+		// Allow special optimization targets
+		if target == "time" {
+			continue
+		}
 		if !knownItems[target] {
 			return fmt.Errorf("optimization target '%s' is not defined in stocks or processes", target)
 		}
