@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/bernotieno/stock-exchange-simulator/internal/parser"
 )
@@ -15,9 +16,19 @@ func NewSimulator(config *parser.Config) *Simulator {
 
 // RunSimulation executes the main simulation loop
 func (sim *Simulator) RunSimulation() error {
+	return sim.RunSimulationWithTimeout(0) // No timeout
+}
+
+// RunSimulationWithTimeout executes the main simulation loop with a timeout
+func (sim *Simulator) RunSimulationWithTimeout(timeout time.Duration) error {
 	maxCycles := 10000 // Safety limit to prevent infinite loops
-	
+	startTime := time.Now()
+
 	for sim.State.CurrentCycle < maxCycles {
+		// Check timeout if specified
+		if timeout > 0 && time.Since(startTime) > timeout {
+			return fmt.Errorf("simulation timed out after %v", timeout)
+		}
 		// Complete any processes that finished this cycle
 		sim.State.CompleteFinishedProcesses()
 		
@@ -51,8 +62,13 @@ func (sim *Simulator) RunSimulation() error {
 
 // RunSimulationWithOutput runs the simulation and generates output
 func (sim *Simulator) RunSimulationWithOutput(inputFilename string) error {
+	return sim.RunSimulationWithOutputAndTimeout(inputFilename, 0) // No timeout
+}
+
+// RunSimulationWithOutputAndTimeout runs the simulation with timeout and generates output
+func (sim *Simulator) RunSimulationWithOutputAndTimeout(inputFilename string, timeout time.Duration) error {
 	// Run the simulation
-	if err := sim.RunSimulation(); err != nil {
+	if err := sim.RunSimulationWithTimeout(timeout); err != nil {
 		return fmt.Errorf("simulation failed: %w", err)
 	}
 	
