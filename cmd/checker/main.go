@@ -20,11 +20,15 @@ func main() {
 
 	// Validate required flags
 	if configFile == "" || logFile == "" {
-		fmt.Fprintf(os.Stderr, "Usage: %s -config <config_file> -log <log_file>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Stock Exchange Log Checker\n")
+		fmt.Fprintf(os.Stderr, "Usage: %s -config <config_file> -log <log_file>\n\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Options:\n")
 		fmt.Fprintf(os.Stderr, "  -config string\n")
-		fmt.Fprintf(os.Stderr, "        Path to the configuration file\n")
+		fmt.Fprintf(os.Stderr, "        Path to the configuration file (required)\n")
 		fmt.Fprintf(os.Stderr, "  -log string\n")
-		fmt.Fprintf(os.Stderr, "        Path to the log file to check\n")
+		fmt.Fprintf(os.Stderr, "        Path to the log file to check (required)\n\n")
+		fmt.Fprintf(os.Stderr, "Example:\n")
+		fmt.Fprintf(os.Stderr, "  %s -config examples/finite.conf -log examples/finite.log\n", os.Args[0])
 		os.Exit(1)
 	}
 
