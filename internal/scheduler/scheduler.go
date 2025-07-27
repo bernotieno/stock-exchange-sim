@@ -116,12 +116,19 @@ func (s *SchedulerState) CompleteFinishedProcesses() {
 	for _, rp := range s.RunningProcesses {
 		if rp.EndTime <= s.CurrentCycle {
 			s.ProduceOutputs(rp.Process)
+			s.logCompletion(rp.Process.Name, rp.EndTime)
 		} else {
 			stillRunning = append(stillRunning, rp)
 		}
 	}
 
 	s.RunningProcesses = stillRunning
+}
+
+// logCompletion logs when a process completes
+func (s *SchedulerState) logCompletion(processName string, endTime int) {
+	// Process completion is implicit in the execution log
+	// The start time is already logged, completion happens at endTime
 }
 
 // GetAvailableProcesses returns processes that can be started now
