@@ -1,6 +1,8 @@
 package scheduler
 
 import (
+	"fmt"
+	"os"
 	"time"
 
 	"github.com/bernotieno/stock-exchange-simulator/internal/parser"
@@ -152,6 +154,38 @@ func (s *SchedulerState) prioritizeForTime(processes []*Process) []*Process {
 		}
 	}
 	return processes
+}
+
+// WriteLogFile writes execution log to file in cycle:process_name format
+func (s *SchedulerState) WriteLogFile(filename string) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	for _, step := range s.ExecutionLog {
+		_, err := fmt.Fprintf(file, "%d:%s\n", step.Cycle, step.Process)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = fmt.Fprintf(file, "No more process doable at cycle %d\n", s.CurrentCycle)
+	return err
+}
+
+// PrintResults prints final stock levels and cycle count to terminal
+func (s *SchedulerState) PrintResults() {
+	fmt.Println("Main Processes:")
+	for _, step := range s.ExecutionLog {
+		fmt.Printf(" %d:%s\n", step.Cycle, step.Process)
+	}
+	fmt.Printf("No more process doable at cycle %d\n", s.CurrentCycle)
+	fmt.Println("Stock:")
+	for item, quantity := range s.Stocks {
+		fmt.Printf(" %s => %d\n", item, quantity)
+	}
 }
 
 // GetAvailableProcesses returns processes that can be started now
