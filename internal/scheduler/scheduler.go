@@ -131,6 +131,29 @@ func (s *SchedulerState) logCompletion(processName string, endTime int) {
 	// The start time is already logged, completion happens at endTime
 }
 
+// isTimeOptimized checks if time is in optimization targets
+func (s *SchedulerState) isTimeOptimized() bool {
+	for _, target := range s.OptimizeTargets {
+		if target == "time" {
+			return true
+		}
+	}
+	return false
+}
+
+// prioritizeForTime sorts processes to minimize total execution time
+func (s *SchedulerState) prioritizeForTime(processes []*Process) []*Process {
+	// Run shorter processes first to minimize total cycle count
+	for i := 0; i < len(processes)-1; i++ {
+		for j := i + 1; j < len(processes); j++ {
+			if processes[i].Duration > processes[j].Duration {
+				processes[i], processes[j] = processes[j], processes[i]
+			}
+		}
+	}
+	return processes
+}
+
 // GetAvailableProcesses returns processes that can be started now
 func (s *SchedulerState) GetAvailableProcesses() []*Process {
 	var available []*Process
@@ -155,6 +178,10 @@ func (s *SchedulerState) RunSimulation(maxCycles int) {
 		available := s.GetAvailableProcesses()
 		if len(available) == 0 {
 			break
+		}
+		
+		if s.isTimeOptimized() {
+			available = s.prioritizeForTime(available)
 		}
 		
 		for _, process := range available {
