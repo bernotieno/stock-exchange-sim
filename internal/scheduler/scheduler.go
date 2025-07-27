@@ -139,3 +139,59 @@ func (s *SchedulerState) GetAvailableProcesses() []*Process {
 func (s *SchedulerState) HasRunnableProcesses() bool {
 	return len(s.GetAvailableProcesses()) > 0
 }
+
+// RunSimulation executes the main simulation loop
+func (s *SchedulerState) RunSimulation(maxCycles int) {
+	for s.CurrentCycle < maxCycles {
+		s.CompleteFinishedProcesses()
+		
+		available := s.GetAvailableProcesses()
+		if len(available) == 0 {
+			break
+		}
+		
+		for _, process := range available {
+			s.StartProcess(process)
+		}
+		
+		s.AdvanceCycle()
+	}
+}
+
+// AdvanceCycle moves to the next cycle or jumps to next process completion
+func (s *SchedulerState) AdvanceCycle() {
+	if len(s.RunningProcesses) == 0 {
+		s.CurrentCycle++
+		return
+	}
+	
+	nextCompletion := s.RunningProcesses[0].EndTime
+	for _, rp := range s.RunningProcesses[1:] {
+		if rp.EndTime < nextCompletion {
+			nextCompletion = rp.EndTime
+		}
+	}
+	
+	if nextCompletion > s.CurrentCycle {
+		s.CurrentCycle = nextCompletion
+	} else {
+		s.CurrentCycle++
+	}
+}
+
+// StepSimulation executes one simulation step
+func (s *SchedulerState) StepSimulation() bool {
+	s.CompleteFinishedProcesses()
+	
+	available := s.GetAvailableProcesses()
+	if len(available) == 0 {
+		return false
+	}
+	
+	for _, process := range available {
+		s.StartProcess(process)
+	}
+	
+	s.AdvanceCycle()
+	return true
+}
