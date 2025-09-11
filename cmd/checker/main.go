@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/bernotieno/stock-exchange-simulator/internal/checker"
 	"github.com/bernotieno/stock-exchange-simulator/internal/parser"
 )
 
@@ -22,8 +23,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Config loaded: %d processes, %d stocks\n", len(config.Processes), len(config.Stocks))
-	fmt.Printf("Log file: %s\n", logFile)
+	entries, err := checker.ParseLogFile(logFile, config)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing log file: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Parsed %d log entries successfully\n", len(entries))
 }
 
 func loadConfig(filename string) (*parser.Config, error) {
